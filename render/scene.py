@@ -49,10 +49,39 @@ class Scene(object):
         # This camera will be passed to the render process
         self.camera = self.create_camera(position=(-2,-2,30), orientation=(1,0,0,0), bounds=(-2,2,1.5,-1.5), warp=4)
         
-        #self.raytrace_pgrm = build_program(clctx, "raytrace")
-        #self.raytrace = self.raytrace_pgrm.raytrace
-        #self.raytrace.set_scalar_arg_dtypes([None, None, None, numpy.uint32, None, None, None, None])
-        self._chunk_array = ChunkArray(self.clctx, self.queue, (0, 1) , None)
+        self.raytrace_pgrm = build_program(clctx, "raytrace")
+        self.raytrace = self.raytrace_pgrm.raytrace
+        self.raytrace.set_scalar_arg_dtypes([None, None, None, numpy.uint32, None, None, None, None])
+        self._chunk_array = ChunkArray(self.clctx, self.queue, (0, 1) , self.raytrace_pgrm.init_chunk_array)
+        
+        """self._chunk_array.allocate_layer(0, x_bounds=(0, 2), y_bounds=(0, 2))
+        self._chunk_array.allocate_layer(1, x_bounds=(0, 2), y_bounds=(0, 2))
+        self._chunk_array.allocate_chunk(0, 0, 0, level=0)
+        self._chunk_array.allocate_chunk(1, 0, 0, level=1)
+        self._chunk_array.allocate_chunk(0, 0, 1, level=0)
+        self._chunk_array.allocate_chunk(1, 0, 1, level=0)
+        self._chunk_array.allocate_chunk(0, 1, 0, level=0)
+        self._chunk_array.allocate_chunk(1, 1, 0, level=0)
+        self._chunk_array.allocate_chunk(0, 1, 1, level=0)
+        self._chunk_array.allocate_chunk(1, 1, 1, level=0)
+        
+        self._chunk_array.get_layer(0).chunk_offset = 0
+        chunk = self._chunk_array.get_chunk(0, 0, 0)
+        chunk.voxel_data[:] = numpy.array([(random.randint(0,2), (0,0,0), (-1,-1,-1)) for i in range(32**3)], dtype=VoxelData.test_dtype)
+        
+        chunk = self._chunk_array.get_chunk(1, 0, 0)
+        chunk.voxel_data[:] = numpy.array([(i % 2, (0,0,0), (-1,-1,-1)) for i in range(16**3)], dtype=VoxelData.test_dtype)
+        
+        chunk = self._chunk_array.get_chunk(0, 0, 1)
+        chunk.voxel_data[:] = numpy.array([(random.randint(0,2), (0,0,0), (-1,-1,-1)) for i in range(32**3)], dtype=VoxelData.test_dtype)
+        
+        self._chunk_array.get_chunk(1, 0, 1).voxel_data[:] = chunk.voxel_data
+        
+        
+        self._chunk_array.get_chunk(0, 1, 0).voxel_data[:] = chunk.voxel_data
+        self._chunk_array.get_chunk(1, 1, 0).voxel_data[:] = chunk.voxel_data
+        self._chunk_array.get_chunk(0, 1, 1).voxel_data[:] = chunk.voxel_data
+        self._chunk_array.get_chunk(1, 1, 1).voxel_data[:] = chunk.voxel_data"""
         
         self.h_test_buffer = numpy.zeros((32,32,32), dtype=numpy.uint32)
         self.d_test_buffer = pyopencl.Buffer(clctx, pyopencl.mem_flags.READ_WRITE | pyopencl.mem_flags.COPY_HOST_PTR, hostbuf=self.h_test_buffer)
@@ -101,11 +130,30 @@ class Scene(object):
         self.raytrace_pgrm.test_kernel(self.queue, (1,), None, self.d_test_buffer)
         pyopencl.enqueue_copy(self.queue, self.h_test_buffer, self.d_test_buffer)
     
-    def upload_buffers(self):
+    def render(self, img, size):
         self._obj_buffer.upload_buffer()
         self._obj_references.upload_buffer()
         self._cam_buffer.upload_buffer()
         self._light_buffer.upload_buffer()
         self._light_references.upload_buffer()
-        self._chunk_array.upload_buffers()
+        
+        """self.raytrace(self.queue, size, None,
+                        img, self._cam_buffer._d_buffer, 
+                             self._obj_references.n_elements,
+                             self._obj_references._d_buffer,
+                             self._obj_buffer._d_buffer,
+                             self._light_references.n_elements,
+                             self._light_references._d_buffer,
+                             self._light_buffer._d_buffer,
+                             self.d_test_buffer)"""
+                             
+        self.raytrace(self.queue, size, (16,8), img, self._cam_buffer._d_buffer, 
+                             self._chunk_array.array_buffer._d_buffer,
+                             self._light_references.n_elements,
+                             self._light_references._d_buffer,
+                             self._light_buffer._d_buffer,
+                             self.d_test_buffer,
+                             self._chunk_array.voxel_data.level_buffers[0]._d_buffer)
+        pyopencl.enqueue_copy(self.queue, self.h_test_buffer, self.d_test_buffer)
+        #pyopencl.enqueue_copy(self.queue, self._chunk_array.array_buffer._h_buffer, self._chunk_array.array_buffer._d_buffer)
         

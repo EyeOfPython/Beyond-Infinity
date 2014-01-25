@@ -22,7 +22,7 @@ class RenderBuffer(object):
         
         self._offset   = 0
         self._h_buffer = numpy.ones(size, dtype=numpy.ubyte)*66
-        self._d_buffer = pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_WRITE, size)
+        self._d_buffer = pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_ONLY, size)
         
         self.grow_rate = grow_rate
         self.n_elements= 0

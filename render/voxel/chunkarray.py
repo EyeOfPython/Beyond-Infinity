@@ -137,12 +137,12 @@ class ChunkArray(object):
         self.layer_buffer.upload_buffer()
         self.chunk_buffer.upload_buffer()
         self.voxel_data.upload_buffers()
-        """self.init_chunk_array_kernel(self.queue, (1,), None, 
+        self.init_chunk_array_kernel(self.queue, (1,), None, 
                                      self.array_buffer._d_buffer, 
                                      self.layer_buffer._d_buffer,
                                      self.chunk_buffer._d_buffer,
                                       *[ self.voxel_data.level_buffers[i]._d_buffer for i in range(self.voxel_data.num_levels) ])
-        self.array_buffer.download_buffer()"""
+        self.array_buffer.download_buffer()
         
     @render_property("x_bounds")
     def x_bounds(self):

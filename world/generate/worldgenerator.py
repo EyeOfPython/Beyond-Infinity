@@ -8,7 +8,6 @@ import numpy
 import time
 from render.voxel.chunkarray import ChunkArray
 import pyopencl
-import sys
 
 class WorldGenerator(object):
     '''
@@ -26,7 +25,7 @@ class WorldGenerator(object):
         
         pass
     
-    def generate(self, chunk_array, ctx, queue, heightmap_kernel, display=None):
+    def generate(self, chunk_array, ctx, queue, heightmap_kernel):
         assert isinstance(chunk_array, ChunkArray)
         hmap = self._generate_hmap()
         x_bounds = (0, 8)
@@ -50,19 +49,12 @@ class WorldGenerator(object):
                 for z in range(32):
                     voxel = chunk_array.get_voxel(x, y, z)
                     voxel['flags'] = 0 if z_max < z else 1"""
+        chunk_array.upload_buffers()
         buffer = pyopencl.Buffer(ctx, pyopencl.mem_flags.READ_ONLY|pyopencl.mem_flags.COPY_HOST_PTR, hostbuf = ihmap)
         #pyopencl.enqueue_copy(queue, buffer, hmap)
-        
-        chunk_array.upload_buffers()
-        
-        print("kernel...")
-        heightmap_kernel(queue, (1, 1, 1), None, chunk_array.array_buffer._d_buffer, buffer)
-        chunk_array.array_buffer.download_buffer()
-        print([ c.data for c in chunk_array.layers[0].chunks ])
-        print("finished")
+        heightmap_kernel(queue, (255, 255, 32), None, chunk_array.array_buffer._d_buffer, buffer)
         pyopencl.enqueue_copy(queue, chunk_array.voxel_data.level_buffers[0]._h_buffer, chunk_array.voxel_data.level_buffers[0]._d_buffer)
         chunk_array.upload_buffers()
-        display.init_chunk_array()
     
 if __name__ == '__main__':
     from world.generate.diamondsquaregenerator import DiamondSquareGenerator
